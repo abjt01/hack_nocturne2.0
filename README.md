@@ -1,102 +1,270 @@
 # Vitals
 
-Vitals is a secure, cross-institution healthcare interoperability platform based on FHIR (Fast Healthcare Interoperability Resources). It enables multiple hospitals to safely exchange patient data, resolve identities, manage data access consent, and maintain immutable audit trails using blockchain technology.
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-green.svg)](https://www.docker.com/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-lightgrey.svg)](https://nodejs.org/)
-[![React](https://img.shields.io/badge/React-18+-informational.svg)](https://react.dev/)
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES2022-yellow.svg)](https://developer.mozilla.org/docs/Web/JavaScript)
-## Table of Contents
-- [Architecture & Microservices](#architecture--microservices)
-- [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Running the Platform Locally](#running-the-platform-locally)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
+Vitals is a **FHIR-based healthcare interoperability platform** designed to enable secure data exchange between hospitals while maintaining **patient consent enforcement and tamper-proof auditability**.
 
-## Architecture & Microservices
+The system implements a **microservices architecture** that standardizes hospital data into **HL7 FHIR bundles**, validates **cross-institution access through patient consent**, and logs every access event using **blockchain-backed cryptographic verification**.
 
-The platform is designed around a microservices architecture, running behind a React frontend and API backend. The core services include:
+The goal is to demonstrate how healthcare institutions can safely share patient records while preserving **privacy, traceability, and interoperability**.
 
-1. **Backend API (`/backend`)** - Core data layer, FastApi server running on port `8000`.
-2. **Frontend (`/frontend`)** - React-based unified dashboard running on port `3000`.
-3. **Hospital Registry (`/services/hospital-registry`)** - Manages onboarded institutions and auth credentials (port `9001`).
-4. **MPI Service (`/services/mpi-service`)** - Master Patient Index. Resolves local hospital patient IDs (`HOSP_A_123`) to a single Global Patient UUID (`uuid-456`) (port `9000`).
-5. **FHIR Service (`/services/fhir-service`)** - Standardized data ingestion and retrieval layer translating local hospital data into FHIR standard bundles (port `8001`).
-6. **Consent Service (`/services/consent-service`)** - Manages patient-to-institution data access grants and permissions (port `8002`).
-7. **Blockchain Audit Service (`/services/blockchain-audit-service`)** - Interacts with a local Hardhat Ethereum network to create tamper-proof cryptographic audit logs of all data access and consent changes (port `8005`).
+---
 
-## Project Structure
+## Badges
 
-```text
-hack_nocturne2.0/
-├── backend/                  # Core FastAPI application & SQLite database
-├── frontend/                 # React frontend application
-├── services/                 # Microservices
-│   ├── blockchain-audit-service/ # Blockchain audit logging
-│   ├── consent-service/          # Consent management validation
-│   ├── fhir-service/             # FHIR data transformation
-│   ├── hospital-registry/        # Auth & Institution management
-│   └── mpi-service/              # Master Patient Index resolution
-└── docker-compose.yml        # Orchestrates all services
-```
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-Enabled-green.svg)
+![Node.js](https://img.shields.io/badge/Node.js-18+-lightgrey.svg)
+![React](https://img.shields.io/badge/React-18+-informational.svg)
+![JavaScript](https://img.shields.io/badge/JavaScript-ES2022-yellow.svg)
 
-## Prerequisites
+---
 
-- **Docker & Docker Compose** (Recommended for easiest setup)
-- **Node.js 18+** (If running frontend manually)
-- **Python 3.9+** (If running backend/services manually)
+# Overview
 
-## Running the Platform Locally
+Healthcare institutions typically maintain **isolated Electronic Health Record (EHR) systems** using incompatible formats.
 
-### Option 1: Using Docker Compose (Recommended)
+When patients move between institutions:
 
-To start the entire platform consisting of the core backend, frontend, and all microservices (except the newly created consent-service which you may need to add to the compose file):
+- Their medical history is fragmented
+- Physicians lack access to complete records
+- Duplicate diagnostic tests are ordered
+- Emergency care decisions are delayed
+
+Vitals introduces a **FHIR-based interoperability layer** that standardizes patient data exchange while ensuring:
+
+- Patient-controlled access through consent management
+- Cross-hospital identity resolution
+- Tamper-proof audit trails using blockchain verification
+
+---
+
+# Problem Statement
+
+Healthcare IT systems face two major challenges:
+
+### 1. Fragmented Medical Records
+
+Hospitals store records in proprietary formats that cannot communicate with other systems.
+
+Consequences include:
+
+- Incomplete patient history
+- Duplicate testing
+- Delayed treatment decisions
+- Increased healthcare costs
+
+### 2. Lack of Transparent Auditability
+
+Patients typically cannot verify:
+
+- Who accessed their records
+- Whether access occurred under valid consent
+- Whether logs have been tampered with
+
+Vitals solves these issues through **FHIR standardization and blockchain-backed audit verification**.
+
+---
+
+
+# Microservices
+
+## API Layer (`backend`)
+- **Language:** Python / FastAPI  
+- **Port:** 8000  
+
+Responsibilities:
+
+- Request routing
+- Authentication
+- Hospital identity validation
+- Gateway for all service calls
+
+---
+
+## FHIR Service (`services/fhir-service`)
+- **Language:** Python  
+- **Port:** 8001  
+
+Responsibilities:
+
+- Convert hospital data into **HL7 FHIR Bundles**
+- Validate resources using `fhir.resources`
+- Serve standardized patient records
+
+Endpoints:
+
+
+GET /fhir/patient/{id}
+GET /fhir/observation/{id}
+GET /fhir/encounter/{id}
+POST /fhir/ingest
+GET /fhir/bundle/{patient_id}
+
+
+---
+
+## Consent Service (`services/consent-service`)
+- **Language:** Python  
+- **Port:** 8002  
+
+Responsibilities:
+
+- Store consent records
+- Validate data access requests
+- Handle grant and revoke operations
+
+Endpoints:
+
+
+POST /consent/validate
+POST /consent/grant
+POST /consent/revoke
+GET /consent/{patient_id}
+
+
+---
+
+## Patient Data Service (`services/patient-data-service`)
+- **Language:** Python  
+- **Port:** 8003  
+
+Responsibilities:
+
+- Store FHIR Bundles
+- Manage patient records
+- Maintain local patient datasets
+
+---
+
+## Blockchain Audit Service (`services/blockchain-audit-service`)
+- **Language:** Node.js  
+- **Port:** 8004  
+
+Responsibilities:
+
+- Receive audit events from services
+- Compute SHA-256 event hashes
+- Write hashes to Ethereum smart contracts
+
+Endpoints:
+
+
+POST /audit/log
+GET /audit/verify/{event_id}
+GET /audit/events
+
+
+---
+
+## MPI Service (`services/mpi-service`)
+- **Language:** Python  
+- **Port:** 9000  
+
+Responsibilities:
+
+- Generate **global patient identifiers**
+- Map hospital-specific patient IDs to a universal UUID
+
+---
+
+## Hospital Registry (`services/hospital-registry`)
+- **Language:** Python  
+- **Port:** 9001  
+
+Responsibilities:
+
+- Maintain hospital identities
+- Validate API keys for inter-hospital communication
+
+---
+
+# Project Structure
+
+
+vitals/
+│
+├── backend/
+│ └── FastAPI gateway
+│
+├── frontend/
+│ └── React dashboard
+│
+├── services/
+│ ├── blockchain-audit-service/
+│ ├── consent-service/
+│ ├── fhir-service/
+│ ├── hospital-registry/
+│ ├── mpi-service/
+│ └── patient-data-service/
+│
+├── docker-compose.yml
+└── README.md
+
+
+---
+
+# Features
+
+### Cross-Hospital Identity Resolution
+Maps hospital-specific patient IDs to a **single global UUID**.
+
+### FHIR Standardization
+All records are served as **HL7 FHIR R4 Bundles**.
+
+### Consent-Based Access
+Patient consent is validated before any data retrieval.
+
+### Immutable Audit Trails
+Every event is hashed and stored on blockchain.
+
+### Microservice Architecture
+Independent services simplify development and scaling.
+
+### Unified Dashboard
+React frontend demonstrating patient data access and audit verification.
+
+---
+
+# Tech Stack
+
+### Frontend
+- React
+- React Router
+- Tailwind CSS
+- Recharts
+
+### Backend
+- Python
+- FastAPI
+- Pydantic v2
+- SQLite
+
+### Blockchain
+- Hardhat Ethereum Network
+- Solidity
+- ethers.js
+- web3.py
+
+### Infrastructure
+- Docker
+- Docker Compose
+
+---
+
+# Prerequisites
+
+Install the following:
+
+- **Docker & Docker Compose** (recommended)
+- **Node.js 18+**
+- **Python 3.9+**
+
+---
+
+# Running the Platform
+
+## Option 1 — Docker (Recommended)
+
+Start all services with:
 
 ```bash
 docker-compose up --build
-```
-
-### Option 2: Running Services Manually
-
-To run the services locally without Docker, you will need to start each one individually. Most Python services come with a wrapper script. 
-
-**Backend**
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # (or venv\Scripts\activate on Windows)
-pip install -r requirements.txt
-uvicorn app.main:app --port 8000 --reload
-```
-
-**Frontend**
-```bash
-cd frontend
-npm install
-npm start
-```
-
-**Microservices (e.g., Consent Service)**
-```bash
-cd services/consent-service
-./start.sh
-```
-
-## Features
-
-- **Cross-Hospital Identity Resolution:** Resolves duplicate records across boundaries.
-- **Granular Consent Management:** Patients own their data and grant/revoke access.
-- **Standardized FHIR Format:** All records are queried and delivered in HL7 FHIR structures.
-- **Immutable Audit Trails:** Every access, consent grant, and denial is hashed and logged to a blockchain backend to prevent tampering.
-- **Unified Dashboard:** Clinical and Administrative views combined into one React frontend.
-
-## Tech Stack
-
-- **Frontend:** React, React Router, Recharts, Tailwind CSS (via components)
-- **Backend & Services:** Python, FastAPI, Pydantic (v2), SQLite3
-- **DevOps/Infra:** Docker, Docker Compose
-- **Blockchain:** Ethereum/Hardhat, web3.py
-
-
-
