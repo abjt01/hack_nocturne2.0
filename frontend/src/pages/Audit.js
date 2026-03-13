@@ -38,7 +38,17 @@ export default function Audit({ backendUrl }) {
         const res = await API.get('/api/audit/events');
         if (!alive) return;
         const data = res.data?.events || res.data || [];
-        if (data.length > 0) setEvents(data);
+        if (data.length > 0) setEvents(data.map(e => ({
+          // Normalize real backend fields → frontend shape
+          id: e.event_id || e.id,
+          action: e.event_type || e.action,
+          requesting_hospital_id: e.actor_hospital_id || e.requesting_hospital_id,
+          patient_global_id: e.subject_patient_id || e.patient_global_id,
+          access_granted: e.outcome === 'SUCCESS' ? true : e.outcome === 'FAILURE' ? false : (e.access_granted ?? null),
+          details: e.details || e.failure_reason || e.event_type || e.action,
+          created_at: e.created_at || e.timestamp,
+          hash: e.blockchain_hash || e.hash,
+        })));
       } catch { /* mock */ }
       setLoading(false);
     };
