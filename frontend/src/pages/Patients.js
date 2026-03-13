@@ -40,9 +40,11 @@ export default function Patients({ backendUrl }) {
         if (data.length > 0) {
           setPatients(data.map(p => ({
             ...p,
-            name: `${p.first_name} ${p.last_name}`,
-            dob: p.dob || p.date_of_birth,
-            id: p.global_id || p.id
+            name: p.name || `${p.given_name || p.first_name || ''} ${p.family_name || p.last_name || ''}`.trim(),
+            dob: p.dob || p.birth_date || p.date_of_birth,
+            id: p.global_id || p.id,
+            local_id: p.local_patient_id || p.local_id,
+            hospital_id: p.hospital_id,
           })));
         }
       } catch { /* mock */ }
