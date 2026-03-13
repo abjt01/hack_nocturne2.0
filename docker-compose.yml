@@ -1,6 +1,32 @@
 version: '3.8'
 
 services:
+  # ─── Core Backend (FastAPI) ──────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: healthbridge-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./healthcare.db
+    volumes:
+      - backend_data:/app
+
+  # ─── FHIR Microservice ──────────────────────────────────────
+  fhir-service:
+    build:
+      context: ./services/fhir-service
+    container_name: fhir-service
+    ports:
+      - "8001:8001"
+    environment:
+      - BACKEND_URL=http://backend:8000/api
+    depends_on:
+      - backend
+
+  # ─── Hospital Registry ──────────────────────────────────────
   hospital-registry:
     build:
       context: ./services/hospital-registry
@@ -12,6 +38,7 @@ services:
     environment:
       - DATABASE_URL=/app/data/hospital_registry.db
 
+  # ─── MPI Service ────────────────────────────────────────────
   mpi-service:
     build:
       context: ./services/mpi-service
@@ -23,6 +50,7 @@ services:
     environment:
       - DATABASE_PATH=/app/data/mpi.db
 
+  # ─── Blockchain Audit Service ───────────────────────────────
   blockchain-audit-service:
     build:
       context: ./services/blockchain-audit-service
@@ -36,7 +64,21 @@ services:
     environment:
       - DATABASE_PATH=/app/data/audit_events.db
 
+  # ─── Frontend (React) ──────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: healthbridge-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+
 volumes:
+  backend_data:
   hospital_registry_data:
   mpi_data:
   blockchain_data:
