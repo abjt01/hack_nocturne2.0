@@ -174,32 +174,6 @@ Responsibilities:
 
 - Maintain hospital identities
 - Validate API keys for inter-hospital communication
-
----
-
-# Project Structure
-
-
-vitals/
-│
-├── backend/
-│ └── FastAPI gateway
-│
-├── frontend/
-│ └── React dashboard
-│
-├── services/
-│ ├── blockchain-audit-service/
-│ ├── consent-service/
-│ ├── fhir-service/
-│ ├── hospital-registry/
-│ ├── mpi-service/
-│ └── patient-data-service/
-│
-├── docker-compose.yml
-└── README.md
-
-
 ---
 
 # Features
