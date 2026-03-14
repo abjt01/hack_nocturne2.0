@@ -1,42 +1,44 @@
-# Vital: FHIR Healthcare Interoperability Platform
+# 🧬 Vital: Healthcare Interoperability Platform
 
-Vital is a comprehensive healthcare data exchange layer built on HL7 FHIR standards. It enables disparate hospital systems to securely share patient records using a zero-trust architecture, consent-gated access control, and immutable blockchain-based audit trails.
+Vital is a highly secure, microservice-based Healthcare Interoperability Platform built for the Hack Nocturne 2.0 hackathon. It solves the critical challenge of fragmented patient data by enabling multiple isolated hospitals to share and aggregate medical records securely. 
 
-The system implements a **microservices architecture** that standardizes hospital data into **HL7 FHIR bundles**, validates **cross-institution access through patient consent**, and logs every access event using **blockchain-backed cryptographic verification**.
-
-The goal is to demonstrate how healthcare institutions can safely share patient records while preserving **privacy, traceability, and interoperability**.
+The platform strictly enforces Zero-Trust principles: data is standardly formatted as FHIR bundles, gated by cryptographic patient consent, encrypted at rest via AES-128, and every access event is immutably logged on an Ethereum blockchain.
 
 ---
 
-## Badges
+## 🚀 Core Capabilities
 
-![License](https://img.shields.io/badge/License-MIT-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Enabled-green.svg)
-![Node.js](https://img.shields.io/badge/Node.js-18+-lightgrey.svg)
-![React](https://img.shields.io/badge/React-18+-informational.svg)
-![JavaScript](https://img.shields.io/badge/JavaScript-ES2022-yellow.svg)
-
----
-
-# Overview
-
-Healthcare institutions typically maintain **isolated Electronic Health Record (EHR) systems** using incompatible formats.
-
-When patients move between institutions:
-
-- Their medical history is fragmented
-- Physicians lack access to complete records
-- Duplicate diagnostic tests are ordered
-- Emergency care decisions are delayed
-
-Vitals introduces a **FHIR-based interoperability layer** that standardizes patient data exchange while ensuring:
-
-- Patient-controlled access through consent management
-- Cross-hospital identity resolution
-- Tamper-proof audit trails using blockchain verification
+- **Universal Identity Resolution (MPI):** Maps siloed, local hospital IDs (e.g., `LOC-001`) into a single, global patient UUID.
+- **Zero-Trust Consent Gating:** Hospital B cannot access Hospital A's patient records without explicit cryptographic consent tracked by a dedicated microservice.
+- **Defense in Depth (Encryption):** Sensitive Personally Identifiable Information (PII) is encrypted at rest using AES-128 Fernet encryption via SQLAlchemy TypeDecorators.
+- **Tamper-Proof Auditing:** Every read, write, and consent grant is hashed (SHA-256) and committed to a local Ethereum blockchain (Hardhat) via Web3.py.
+- **Multi-Tenant React Dashboard:** A dynamic Single Page Application (SPA) that allows organic switching between hospital credentials to simulate real-world, cross-tenant data requests.
 
 ---
 
+## 🏗️ Architecture & Tech Stack
+
+Vital is designed as a distributed microservice ecosystem.
+
+### **Backend (Python / FastAPI)**
+- **Gateway (`vital-backend`):** The central router that enforces `X-Role`, `X-Hospital-ID`, and `X-API-Key` headers before delegating tasks. Handles PII encryption.
+- **Microservices:**
+  - `hospital-registry`: Issues and validates multi-tenant hospital credentials.
+  - `mpi-service` (Master Patient Index): Resolves local IDs to global UUIDs.
+  - `consent-service`: The gatekeeper managing active/revoked data access permissions.
+  - `fhir-service`: A proxy that standardizes disparate healthcare data into FHIR R4 JSON bundles.
+  - `blockchain-audit-service`: Converts platform events into hashes and transacts them onto the Ethereum ledger.
+
+### **Databases & Ledger**
+- **PostgreSQL 15:** A single instance utilizing strict multi-schema isolation (`patient_service`, `consent_service`, `registry_service`, etc.) to enforce data boundaries between microservices.
+- **Ethereum (Hardhat):** A local blockchain node running the `AuditLogger` smart contract.
+
+### **Frontend**
+- **React 18:** A glass-morphic, dark-themed SPA featuring Recharts for live data visualization and Axios interceptors for dynamic header injection.
+
+---
+
+<<<<<<< HEAD
 # Problem Statement
 
 Healthcare IT systems face two major challenges:
@@ -240,5 +242,50 @@ Install the following:
 
 Start all services with:
 
+=======
+## 🛠️ Local Setup & Installation
+
+### Prerequisites
+- Docker & Docker Compose
+- Node.js (v18+) & npm
+- Python 3.10+
+
+### Step 1: Start the Blockchain Node
+The blockchain service requires a dedicated terminal to run the local Hardhat network.
+```bash
+cd services/blockchain-audit-service
+npm install
+./start.sh
+```
+*Leave this terminal running in the background.*
+
+### Step 2: Boot the Microservices
+Open a new terminal at the project root to spin up PostgreSQL, the FastAPI backend, the React frontend, and all microservices.
+>>>>>>> 6c7c1e0 (Update README.md)
 ```bash
 docker-compose up --build
+```
+*Wait until you see `vital-frontend | Compiled successfully!` and PostgreSQL is ready.*
+
+### Step 3: Seed Organic Demo Data
+Vital does not rely on static mock data. Open a third terminal to run the seeding script, which uses actual API calls to populate the database and blockchain with patients, consents, and audit logs.
+```bash
+python3 integration_test.py
+python3 demo_seed.py
+```
+
+### Step 4: Access the Platform
+Open your browser and navigate to:
+👉 **[http://localhost:3000](http://localhost:3000)**
+
+---
+
+## 🛡️ Demonstrating Security features (MVP Guide)
+
+1. **Dashboard & Metrics:** View live data populated by the `demo_seed.py` script.
+2. **Multi-Tenant Config:** Use the `⚙️ Config` button in the top right to switch between `HOSP_001` and `HOSP_002` credentials dynamically.
+3. **Consent Revocation:** Navigate to the Consent Manager and revoke an active grant. Watch as the other hospital instantly loses access (403 Forbidden) to that patient's FHIR bundle.
+4. **Blockchain Verification:** Go to the Audit Trail and click "Verify" on any log. The system will mathematically prove the log perfectly matches the immutable Ethereum transaction.
+
+---
+*Built for Hack Nocturne 2.0*
