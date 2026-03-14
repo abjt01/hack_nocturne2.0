@@ -1,18 +1,16 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, DateTime
+from sqlalchemy import Column, String, DateTime, Integer
 
 from app.database import Base
 
 
 class MPIRecord(Base):
-    __tablename__ = "mpi_records"
+    __tablename__ = "identities"
+    __table_args__ = {"schema": "mpi_service"}
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(Integer, primary_key=True, autoincrement=True)
     global_patient_id = Column(String, nullable=False, index=True)
     hospital_id = Column(String, nullable=False)
     local_patient_id = Column(String, nullable=False)
-    created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
-    )

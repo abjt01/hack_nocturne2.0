@@ -7,7 +7,8 @@ from app.database import Base
 
 
 class Consent(Base):
-    __tablename__ = "consents"
+    __tablename__ = "consent_records"
+    __table_args__ = {"schema": "consent_service"}
 
     consent_id = Column(
         String, primary_key=True, default=lambda: str(uuid.uuid4())
@@ -16,7 +17,8 @@ class Consent(Base):
     granting_institution = Column(String, nullable=False)
     requesting_institution = Column(String, nullable=False)
     granted_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        String, default=lambda: datetime.now(timezone.utc).isoformat(), nullable=False
     )
-    expires_at = Column(DateTime, nullable=True)  # null = indefinite
+    expires_at = Column(String, nullable=True)  # null = indefinite
     status = Column(String, default="active", nullable=False)  # active | revoked
+    blockchain_hash = Column(String, nullable=True)

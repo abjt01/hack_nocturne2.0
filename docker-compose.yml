@@ -1,4 +1,4 @@
-version: '3.8'
+# Vital Platform — Multi-service Interoperability Platform
 
 services:
   # ─── Core Backend (FastAPI) ──────────────────────────────────
@@ -6,11 +6,15 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: healthbridge-backend
+    container_name: vital-backend
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./healthcare.db
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vital_db
+      - ENCRYPTION_KEY=jeB5KNlu4QsjcL6TH_Re6s6U35ZuxEpe31kq8AvTFsE=
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - backend_data:/app
 
@@ -24,7 +28,8 @@ services:
     environment:
       - BACKEND_URL=http://backend:8000/api
     depends_on:
-      - backend
+      backend:
+        condition: service_started
 
   # ─── Hospital Registry ──────────────────────────────────────
   hospital-registry:
@@ -36,7 +41,23 @@ services:
     volumes:
       - hospital_registry_data:/app/data
     environment:
-      - DATABASE_URL=/app/data/hospital_registry.db
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vital_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─── Consent Service ────────────────────────────────────────
+  consent-service:
+    build:
+      context: ./services/consent-service
+    container_name: consent-service
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vital_db
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # ─── MPI Service ────────────────────────────────────────────
   mpi-service:
@@ -48,7 +69,10 @@ services:
     volumes:
       - mpi_data:/app/data
     environment:
-      - DATABASE_PATH=/app/data/mpi.db
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vital_db
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # ─── Blockchain Audit Service ───────────────────────────────
   blockchain-audit-service:
@@ -62,23 +86,48 @@ services:
     env_file:
       - ./services/blockchain-audit-service/.env
     environment:
-      - DATABASE_PATH=/app/data/audit_events.db
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vital_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # ─── Frontend (React) ──────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: healthbridge-frontend
+    container_name: vital-frontend
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_BACKEND_URL=http://backend:8000
+      - REACT_APP_BACKEND_URL=http://localhost:8000
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+
+  # ─── Database (PostgreSQL) ──────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: vital-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=vital_db
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vital_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
   backend_data:
   hospital_registry_data:
   mpi_data:
   blockchain_data:
+  postgres_data:

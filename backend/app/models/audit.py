@@ -8,6 +8,7 @@ from app.database import Base
 
 class AuditEvent(Base):
     __tablename__ = "audit_events"
+    __table_args__ = {"schema": "audit_service"}
 
     event_id = Column(
         String, primary_key=True, default=lambda: str(uuid.uuid4())
@@ -16,7 +17,7 @@ class AuditEvent(Base):
         String, nullable=False
     )  # DATA_ACCESS | CONSENT_UPDATE | ACCESS_DENIED
     timestamp = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        String, default=lambda: datetime.now(timezone.utc).isoformat(), nullable=False
     )
     actor_hospital_id = Column(String, nullable=False)
     actor_service = Column(

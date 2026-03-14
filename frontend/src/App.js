@@ -32,7 +32,7 @@ function Sidebar({ backendUrl }) {
       <div className="sidebar__brand">
         <div className="sidebar__logo">🏥</div>
         <div className="sidebar__brand-text">
-          <span className="sidebar__brand-name">HealthBridge</span>
+          <span className="sidebar__brand-name">Vital</span>
           <span className="sidebar__brand-sub">FHIR Platform</span>
         </div>
       </div>
@@ -76,8 +76,8 @@ function Sidebar({ backendUrl }) {
 function Topbar({ backendUrl, setBackendUrl }) {
   const [showConfig, setShowConfig] = useState(false);
   const [draft, setDraft] = useState(backendUrl);
-  const [draftHosp, setDraftHosp] = useState(localStorage.getItem('healthbridge_hosp_id') || 'HOSP_001');
-  const [draftKey, setDraftKey] = useState(localStorage.getItem('healthbridge_api_key') || 'key_001');
+  const [draftHosp, setDraftHosp] = useState(localStorage.getItem('vital_hosp_id') || 'HOSP_001');
+  const [draftKey, setDraftKey] = useState(localStorage.getItem('vital_api_key') || 'key_001');
   const location = useLocation();
 
   const pageTitles = {
@@ -92,13 +92,13 @@ function Topbar({ backendUrl, setBackendUrl }) {
 
   const title = Object.entries(pageTitles).find(
     ([path]) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
-  )?.[1] || 'HealthBridge';
+  )?.[1] || 'Vital';
 
   const save = () => {
     setBackendUrl(draft);
-    localStorage.setItem('healthbridge_backend', draft);
-    localStorage.setItem('healthbridge_hosp_id', draftHosp);
-    localStorage.setItem('healthbridge_api_key', draftKey);
+    localStorage.setItem('vital_backend', draft);
+    localStorage.setItem('vital_hosp_id', draftHosp);
+    localStorage.setItem('vital_api_key', draftKey);
     // Reload to apply new headers globally easily
     window.location.reload();
   };
@@ -124,7 +124,7 @@ function Topbar({ backendUrl, setBackendUrl }) {
         <div className="modal-backdrop" onClick={() => setShowConfig(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal__title">⚙️ API Configuration</div>
-            <p className="modal__subtitle">Set the HealthBridge backend URL. The mock backend runs on port 8001.</p>
+            <p className="modal__subtitle">Set the Vital backend URL, Hospital ID, and API Key.</p>
             <div className="form-group">
               <label className="form-label">Backend URL</label>
               <input
@@ -189,7 +189,7 @@ function AppLayout({ backendUrl, setBackendUrl }) {
 
 export default function App() {
   const [backendUrl, setBackendUrl] = useState(
-    localStorage.getItem('healthbridge_backend') || 'http://localhost:8000'
+    localStorage.getItem('vital_backend') || 'http://localhost:8000'
   );
 
   return (

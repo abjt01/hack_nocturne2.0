@@ -1,28 +1,34 @@
 """Audit router — list events, verify hash integrity."""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.database import get_db
 from app.schemas.audit import AuditEventResponse, AuditEventListResponse, AuditVerifyResponse
-from app.services.auth import get_current_hospital, AuthenticatedHospital
+from app.services.auth import get_current_hospital, get_current_requester, AuthenticatedHospital, AuthenticatedPatient
 from app.services import audit_service
+from typing import Annotated
 
 router = APIRouter(prefix="/api/audit", tags=["Audit Service"])
 
 
 @router.get("/events", response_model=AuditEventListResponse)
 def list_audit_events(
-    patient_id: str = Query(None),
-    event_type: str = Query(None),
+    requester: Annotated[AuthenticatedHospital | AuthenticatedPatient, Depends(get_current_requester)],
+    db: Annotated[Session, Depends(get_db)],
+    patient_id: Optional[str] = Query(None),
+    event_type: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
 ):
-    """List audit events with optional filters."""
+    """List audit events. Patients can only see their own history."""
+    if isinstance(requester, AuthenticatedPatient):
+        if patient_id and patient_id != requester.patient_id:
+            raise HTTPException(status_code=403, detail="Patients can only view their own history")
+        patient_id = requester.patient_id
+
     events = audit_service.list_events(
         db=db,
         patient_id=patient_id,
@@ -39,12 +45,11 @@ def list_audit_events(
 @router.get("/verify/{event_id}", response_model=AuditVerifyResponse)
 def verify_audit_event(
     event_id: str,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
+    hospital: Annotated[AuthenticatedHospital, Depends(get_current_hospital)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
-    Verify an audit event's hash integrity.
-    Recomputes hash from stored fields and compares to stored hash.
+    Verify an audit event's hash integrity. Restricted to Hospitals.
     """
     result = audit_service.verify_event(db=db, event_id=event_id)
     return AuditVerifyResponse(**result)
@@ -60,20 +65,17 @@ class AuditLogRequest(BaseModel):
     resource_type: Optional[str] = None
     resource_id: Optional[str] = None
     failure_reason: Optional[str] = None
-    dedup_key: Optional[str] = None  # used by microservice layer for dedup tracking
+    dedup_key: Optional[str] = None
 
 
 @router.post("/log", response_model=AuditEventResponse, status_code=201)
 def log_audit_event(
     body: AuditLogRequest,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
+    hospital: Annotated[AuthenticatedHospital, Depends(get_current_hospital)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
-    Accept an audit event from a trusted microservice (e.g. fhir-microservice).
-    Stores it with the same SHA-256 hash as internally generated events.
-    dedup_key is stored in failure_reason field if no failure_reason is provided,
-    so analytics can suppress duplicate events without a schema migration.
+    Accept an audit event from a trusted microservice. Restricted to Hospitals.
     """
     failure_reason = body.failure_reason
     if not failure_reason and body.dedup_key:
@@ -91,3 +93,4 @@ def log_audit_event(
         failure_reason=failure_reason,
     )
     return AuditEventResponse.model_validate(event)
+

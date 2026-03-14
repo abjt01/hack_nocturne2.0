@@ -1,11 +1,11 @@
 import axios from 'axios';
 
 const getBaseUrl = () =>
-  localStorage.getItem('healthbridge_backend') || 'http://localhost:8000';
+  localStorage.getItem('vital_backend') || 'http://localhost:8000';
 
 const getAuth = () => ({
-  hospitalId: localStorage.getItem('healthbridge_hosp_id') || 'HOSP_001',
-  apiKey: localStorage.getItem('healthbridge_api_key') || 'key_001',
+  hospitalId: localStorage.getItem('vital_hosp_id') || 'HOSP_001',
+  apiKey: localStorage.getItem('vital_api_key') || 'key_001',
 });
 
 const API = axios.create({ timeout: 10000 });
@@ -16,6 +16,7 @@ API.interceptors.request.use(config => {
   const auth = getAuth();
   if (auth.hospitalId) config.headers['X-Hospital-ID'] = auth.hospitalId;
   if (auth.apiKey) config.headers['X-API-Key'] = auth.apiKey;
+  config.headers['X-Role'] = 'hospital'; // Default role for Dashboard
   return config;
 });
 

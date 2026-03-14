@@ -1,11 +1,11 @@
 import json
 import os
 from web3 import Web3
-from web3.middleware import SignAndSendRawMiddlewareBuilder
+from web3.middleware import construct_sign_and_send_raw_middleware
 from eth_account import Account
 import logging
 
-from .config import (
+from app.config import (
     BLOCKCHAIN_RPC_URL,
     SMART_CONTRACT_ADDRESS,
     CONTRACT_ABI_PATH,
@@ -31,7 +31,7 @@ class BlockchainClient:
         try:
             # Set up account for signing
             self.account = Account.from_key(WALLET_PRIVATE_KEY)
-            self.w3.middleware_onion.inject(SignAndSendRawMiddlewareBuilder.build(self.account), layer=0)
+            self.w3.middleware_onion.add(construct_sign_and_send_raw_middleware(self.account))
             self.w3.eth.default_account = self.account.address
             logger.info(f"Initialized Web3 account: {self.account.address}")
             

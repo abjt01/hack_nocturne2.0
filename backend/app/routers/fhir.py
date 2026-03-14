@@ -21,8 +21,9 @@ from app.models.observation import Observation
 from app.models.encounter import Encounter
 from app.schemas.patient import PatientIngest, PatientIngestResponse
 from app.schemas.observation import ObservationCreate, ObservationResponse
-from app.services.auth import get_current_hospital, AuthenticatedHospital
+from app.services.auth import get_current_hospital, get_current_requester, AuthenticatedHospital, AuthenticatedPatient
 from app.services import consent_service, audit_service, fhir_service, mpi_service
+from typing import Annotated
 
 logger = logging.getLogger("backend.fhir")
 logger.setLevel(logging.INFO)
@@ -30,10 +31,19 @@ logger.setLevel(logging.INFO)
 router = APIRouter(prefix="/api", tags=["FHIR Service"])
 
 
-def _consent_gate(db: Session, patient_id: str, hospital: AuthenticatedHospital):
+def _consent_gate(db: Session, patient_id: str, requester: AuthenticatedHospital | AuthenticatedPatient):
     """
-    Shared consent check logic. If consent fails, logs ACCESS_DENIED and raises 403.
+    Shared consent check logic. If Patient role, checks ownership. If Hospital, checks consent.
     """
+    if isinstance(requester, AuthenticatedPatient):
+        if requester.patient_id != patient_id:
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Patients can only access their own records"
+            )
+        return
+
+    hospital = requester
     # Check if the requesting hospital owns the patient (same hospital = no consent needed)
     patient = db.query(Patient).filter(Patient.global_id == patient_id).first()
     if patient and patient.hospital_id == hospital.hospital_id:
@@ -73,15 +83,15 @@ def _consent_gate(db: Session, patient_id: str, hospital: AuthenticatedHospital)
 @router.get("/patient/{patient_id}")
 def get_patient_resource(
     patient_id: str,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
+    requester: AuthenticatedHospital | AuthenticatedPatient = Depends(get_current_requester),
     db: Session = Depends(get_db),
 ):
     """
     Get a FHIR Patient resource by global patient ID.
-    Consent-gated for cross-hospital access.
+    Consent-gated for cross-hospital access; implicit for Patients.
     """
     # Consent check
-    _consent_gate(db, patient_id, hospital)
+    _consent_gate(db, patient_id, requester)
 
     resource = fhir_service.get_patient_resource(db, patient_id)
     if not resource:
@@ -95,10 +105,11 @@ def get_patient_resource(
         )
 
     # Log DATA_ACCESS event
+    actor_id = requester.hospital_id if isinstance(requester, AuthenticatedHospital) else "PATIENT:" + requester.patient_id
     audit_service.log_event(
         db=db,
         event_type="DATA_ACCESS",
-        actor_hospital_id=hospital.hospital_id,
+        actor_hospital_id=actor_id,
         actor_service="fhir-service",
         outcome="SUCCESS",
         subject_patient_id=patient_id,
@@ -106,22 +117,21 @@ def get_patient_resource(
         resource_id=patient_id,
     )
 
-    # Return resource as built by fhir_service (expected to be FHIR JSON/dict)
     return resource
 
 
 @router.get("/bundle/{patient_id}")
 def get_bundle(
     patient_id: str,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
+    requester: AuthenticatedHospital | AuthenticatedPatient = Depends(get_current_requester),
     db: Session = Depends(get_db),
 ):
     """
-    Get a full FHIR Bundle (Patient + Observations + Encounters) for a patient.
-    Consent-gated for cross-hospital access.
+    Get a full FHIR Bundle for a patient.
+    Consent-gated for cross-hospital access; implicit for Patients.
     """
     # Consent check
-    _consent_gate(db, patient_id, hospital)
+    _consent_gate(db, patient_id, requester)
 
     bundle = fhir_service.build_bundle(db, patient_id)
     if not bundle:
@@ -134,11 +144,12 @@ def get_bundle(
             },
         )
 
-    # Log DATA_ACCESS event — resource_type must be "Bundle" here.
+    # Log DATA_ACCESS event
+    actor_id = requester.hospital_id if isinstance(requester, AuthenticatedHospital) else "PATIENT:" + requester.patient_id
     audit_service.log_event(
         db=db,
         event_type="DATA_ACCESS",
-        actor_hospital_id=hospital.hospital_id,
+        actor_hospital_id=actor_id,
         actor_service="fhir-service",
         outcome="SUCCESS",
         subject_patient_id=patient_id,
@@ -152,7 +163,7 @@ def get_bundle(
 @router.get("/observation/{observation_id}")
 def get_observation(
     observation_id: str,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
+    requester: AuthenticatedHospital | AuthenticatedPatient = Depends(get_current_requester),
     db: Session = Depends(get_db),
 ):
     """Get a FHIR Observation resource by ID."""
@@ -168,14 +179,15 @@ def get_observation(
         )
 
     # Consent check on the patient
-    _consent_gate(db, obs.patient_id, hospital)
+    _consent_gate(db, obs.patient_id, requester)
 
     resource = fhir_service.build_observation_resource(obs)
 
+    actor_id = requester.hospital_id if isinstance(requester, AuthenticatedHospital) else "PATIENT:" + requester.patient_id
     audit_service.log_event(
         db=db,
         event_type="DATA_ACCESS",
-        actor_hospital_id=hospital.hospital_id,
+        actor_hospital_id=actor_id,
         actor_service="fhir-service",
         outcome="SUCCESS",
         subject_patient_id=obs.patient_id,
@@ -189,7 +201,7 @@ def get_observation(
 @router.get("/encounter/{encounter_id}")
 def get_encounter_resource(
     encounter_id: str,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
+    requester: AuthenticatedHospital | AuthenticatedPatient = Depends(get_current_requester),
     db: Session = Depends(get_db),
 ):
     """Get a FHIR Encounter resource by ID."""
@@ -205,14 +217,15 @@ def get_encounter_resource(
         )
 
     # Consent check on the owning patient
-    _consent_gate(db, enc.patient_id, hospital)
+    _consent_gate(db, enc.patient_id, requester)
 
     resource = fhir_service.build_encounter_resource(enc)
 
+    actor_id = requester.hospital_id if isinstance(requester, AuthenticatedHospital) else "PATIENT:" + requester.patient_id
     audit_service.log_event(
         db=db,
         event_type="DATA_ACCESS",
-        actor_hospital_id=hospital.hospital_id,
+        actor_hospital_id=actor_id,
         actor_service="fhir-service",
         outcome="SUCCESS",
         subject_patient_id=enc.patient_id,
@@ -229,7 +242,7 @@ def create_observation(
     hospital: AuthenticatedHospital = Depends(get_current_hospital),
     db: Session = Depends(get_db),
 ):
-    """Create a new Observation resource."""
+    """Create a new Observation resource. Restricted to Hospitals."""
     obs = Observation(
         id=str(uuid.uuid4()),
         patient_id=body.patient_id,
@@ -246,7 +259,6 @@ def create_observation(
     db.commit()
     db.refresh(obs)
 
-    # Build response using schema (ObservationResponse) for consistent shape
     return ObservationResponse.model_validate(obs)
 
 
@@ -257,8 +269,7 @@ def ingest_patient(
     db: Session = Depends(get_db),
 ):
     """
-    Ingest raw hospital patient data.
-    Creates Patient + MPI mapping + optional Observations and Encounters.
+    Ingest raw hospital patient data. Restricted to Hospitals.
     """
     global_id = str(uuid.uuid4())
 
@@ -322,10 +333,9 @@ def ingest_patient(
             db.add(enc)
             enc_count += 1
 
-    # Commit everything in one transaction; rollback on error
     try:
         db.commit()
-    except Exception as e:
+    except Exception:
         db.rollback()
         logger.exception("DB commit failed during patient ingest")
         raise HTTPException(
@@ -333,10 +343,8 @@ def ingest_patient(
             detail={"error": True, "code": "DB_COMMIT_FAILED", "message": "Failed to persist patient data."},
         )
 
-    # Build FHIR Patient resource using fhir_service (should return FHIR JSON/dict)
     fhir_patient = fhir_service.build_patient_resource(patient)
 
-    # Log DATA_ACCESS (ingest event) or any other audit as needed
     audit_service.log_event(
         db=db,
         event_type="DATA_ACCESS",

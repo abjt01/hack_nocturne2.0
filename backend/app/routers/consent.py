@@ -13,8 +13,9 @@ from app.schemas.consent import (
     ConsentGrantResponse,
     ConsentListResponse,
 )
-from app.services.auth import get_current_hospital, AuthenticatedHospital
+from app.services.auth import get_current_hospital, get_current_requester, AuthenticatedHospital, AuthenticatedPatient
 from app.services import consent_service
+from typing import Annotated
 
 router = APIRouter(prefix="/api/consent", tags=["Consent Service"])
 
@@ -22,17 +23,24 @@ router = APIRouter(prefix="/api/consent", tags=["Consent Service"])
 @router.post("/grant", response_model=ConsentGrantResponse, status_code=201)
 def grant_consent(
     body: ConsentGrant,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
+    requester: Annotated[AuthenticatedHospital | AuthenticatedPatient, Depends(get_current_requester)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Grant consent for an institution to access a patient's records.
-    The authenticated hospital is the granting institution.
+    Hospitals grant on behalf of patients; Patients grant directly.
     """
+    if isinstance(requester, AuthenticatedPatient):
+        if requester.patient_id != body.patient_id:
+            raise HTTPException(status_code=403, detail="Patients can only grant consent for themselves")
+        grantor = "PATIENT:" + requester.patient_id
+    else:
+        grantor = requester.hospital_id
+
     result = consent_service.grant_consent(
         db=db,
         patient_id=body.patient_id,
-        granting_institution=hospital.hospital_id,
+        granting_institution=grantor,
         requesting_institution=body.institution_id,
         expiry=body.expiry,
     )
@@ -56,14 +64,21 @@ def grant_consent(
 @router.post("/revoke")
 def revoke_consent(
     body: ConsentRevoke,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
+    requester: Annotated[AuthenticatedHospital | AuthenticatedPatient, Depends(get_current_requester)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Revoke consent for an institution to access a patient's records."""
+    if isinstance(requester, AuthenticatedPatient):
+        if requester.patient_id != body.patient_id:
+            raise HTTPException(status_code=403, detail="Patients can only revoke their own consent")
+        grantor = "PATIENT:" + requester.patient_id
+    else:
+        grantor = requester.hospital_id
+
     result = consent_service.revoke_consent(
         db=db,
         patient_id=body.patient_id,
-        granting_institution=hospital.hospital_id,
+        granting_institution=grantor,
         requesting_institution=body.institution_id,
     )
 
@@ -93,10 +108,10 @@ def revoke_consent(
 @router.post("/validate", response_model=ConsentValidateResponse)
 def validate_consent(
     body: ConsentValidate,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
+    hospital: Annotated[AuthenticatedHospital, Depends(get_current_hospital)],
+    db: Annotated[Session, Depends(get_db)],
 ):
-    """Validate whether an institution has active consent for a patient."""
+    """Validate whether an institution has active consent for a patient. Restricted to Hospitals."""
     result = consent_service.validate_consent(
         db=db,
         patient_id=body.patient_id,
@@ -108,12 +123,16 @@ def validate_consent(
 @router.get("/{patient_id}", response_model=ConsentListResponse)
 def list_consents(
     patient_id: str,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
+    requester: Annotated[AuthenticatedHospital | AuthenticatedPatient, Depends(get_current_requester)],
+    db: Annotated[Session, Depends(get_db)],
 ):
-    """List all active consents for a patient."""
+    """List all active consents for a patient. Patients can only see their own list."""
+    if isinstance(requester, AuthenticatedPatient) and requester.patient_id != patient_id:
+        raise HTTPException(status_code=403, detail="Patients can only view their own consents")
+
     consents = consent_service.list_consents(db=db, patient_id=patient_id)
     return ConsentListResponse(
         consents=[ConsentResponse.model_validate(c) for c in consents],
         count=len(consents),
     )
+

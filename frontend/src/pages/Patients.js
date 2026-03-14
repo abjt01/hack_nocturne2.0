@@ -2,29 +2,13 @@ import React, { useState, useEffect } from 'react';
 import API from '../services/api';
 import './Patients.css';
 
-// const MOCK_PATIENTS = [
-//   { id: 'PAT-GLB-001', local_id: 'LOC-001', hospital_id: 'HOSP_001', name: 'Alice Johnson',    dob: '1985-03-12', gender: 'female', blood_type: 'A+', diagnoses: ['Hypertension', 'Diabetes T2'] },
-//   { id: 'PAT-GLB-002', local_id: 'LOC-002', hospital_id: 'HOSP_001', name: 'Bob Martinez',     dob: '1972-07-08', gender: 'male',   blood_type: 'O-', diagnoses: ['Coronary Artery Disease'] },
-//   { id: 'PAT-GLB-003', local_id: 'LOC-003', hospital_id: 'HOSP_001', name: 'Carol Williams',   dob: '1990-11-25', gender: 'female', blood_type: 'B+', diagnoses: ['Asthma'] },
-//   { id: 'PAT-GLB-004', local_id: 'LOC-004', hospital_id: 'HOSP_002', name: 'David Chen',       dob: '1965-01-30', gender: 'male',   blood_type: 'AB+',diagnoses: ['Chronic Kidney Disease'] },
-//   { id: 'PAT-GLB-005', local_id: 'LOC-005', hospital_id: 'HOSP_002', name: 'Eva Rodriguez',    dob: '1995-06-14', gender: 'female', blood_type: 'A-', diagnoses: ['Anxiety Disorder'] },
-//   { id: 'PAT-GLB-006', local_id: 'LOC-006', hospital_id: 'HOSP_003', name: 'Frank Thompson',   dob: '1958-09-03', gender: 'male',   blood_type: 'O+', diagnoses: ['COPD', 'Heart Failure'] },
-//   { id: 'PAT-GLB-007', local_id: 'LOC-007', hospital_id: 'HOSP_003', name: 'Grace Lee',        dob: '2001-04-22', gender: 'female', blood_type: 'B-', diagnoses: ['Juvenile Diabetes'] },
-// ];
-
-// const HOSPITAL_NAMES = {
-//   HOSP_001: 'City General',
-//   HOSP_002: "St. Mary's",
-//   HOSP_003: 'Northwest Clinic',
-// };
-
 function age(dob) {
   if (!dob) return '—';
   return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 3600 * 1000));
 }
 
 export default function Patients({ backendUrl }) {
-  const [patients, setPatients] = useState(MOCK_PATIENTS);
+  const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [hospFilter, setHospFilter] = useState('all');
@@ -37,17 +21,15 @@ export default function Patients({ backendUrl }) {
         const res = await API.get('/api/patients');
         if (!alive) return;
         const data = res.data?.patients || res.data || [];
-        if (data.length > 0) {
-          setPatients(data.map(p => ({
-            ...p,
-            name: p.name || `${p.given_name || p.first_name || ''} ${p.family_name || p.last_name || ''}`.trim(),
-            dob: p.dob || p.birth_date || p.date_of_birth,
-            id: p.global_id || p.id,
-            local_id: p.local_patient_id || p.local_id,
-            hospital_id: p.hospital_id,
-          })));
-        }
-      } catch { /* mock */ }
+        setPatients(data.map(p => ({
+          ...p,
+          name: p.name || `${p.given_name || p.first_name || ''} ${p.family_name || p.last_name || ''}`.trim(),
+          dob: p.dob || p.birth_date || p.date_of_birth,
+          id: p.global_id || p.id,
+          local_id: p.local_patient_id || p.local_id,
+          hospital_id: p.hospital_id,
+        })));
+      } catch { }
       setLoading(false);
     };
     load();
@@ -77,7 +59,7 @@ export default function Patients({ backendUrl }) {
         </div>
         <select className="form-control" style={{ width: 200 }} value={hospFilter} onChange={e => setHospFilter(e.target.value)}>
           <option value="all">All Hospitals</option>
-          {hospitals.map(h => <option key={h} value={h}>{HOSPITAL_NAMES[h] || h}</option>)}
+          {hospitals.map(h => <option key={h} value={h}>{h}</option>)}
         </select>
         <div style={{ color: 'var(--gray-500)', fontSize: 'var(--text-sm)', fontWeight: 500 }}>
           {filtered.length} patient{filtered.length !== 1 ? 's' : ''}
@@ -128,7 +110,7 @@ export default function Patients({ backendUrl }) {
                         </span>
                       </td>
                       <td>
-                        <span className="badge badge--blue">{HOSPITAL_NAMES[p.hospital_id] || p.hospital_id || '—'}</span>
+                        <span className="badge badge--blue">{p.hospital_id || '—'}</span>
                       </td>
                       <td>
                         <span className="badge badge--error">{p.blood_type || '—'}</span>
@@ -156,16 +138,12 @@ export default function Patients({ backendUrl }) {
                               </div>
                               <div>
                                 <div className="patients__detail-label">Primary Hospital</div>
-                                <strong>{HOSPITAL_NAMES[p.hospital_id] || p.hospital_id}</strong>
+                                <strong>{p.hospital_id}</strong>
                               </div>
                               <div>
                                 <div className="patients__detail-label">Date of Birth</div>
                                 <span>{p.dob ? new Date(p.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</span>
                               </div>
-                            </div>
-                            <div style={{ marginTop: 'var(--sp-3)', display: 'flex', gap: 'var(--sp-2)' }}>
-                              <span className="badge badge--info">📋 FHIR Bundle Available</span>
-                              <span className="badge badge--success">✓ MPI Registered</span>
                             </div>
                           </div>
                         </td>

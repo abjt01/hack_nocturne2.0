@@ -7,7 +7,6 @@ settings = get_settings()
 
 engine = create_engine(
     settings.DATABASE_URL,
-    connect_args={"check_same_thread": False},  # SQLite-specific
     echo=False,
 )
 
@@ -29,4 +28,11 @@ def get_db():
 
 def create_tables():
     """Create all tables in the database."""
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS patient_service"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS consent_service"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS registry_service"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS audit_service"))
+        conn.commit()
     Base.metadata.create_all(bind=engine)

@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas.mpi import MPIRegister, MPIRegisterResponse, MPIRecordResponse, MPIIdentity
-from app.services.auth import get_current_hospital, AuthenticatedHospital
+from app.services.auth import get_current_hospital, get_current_requester, AuthenticatedHospital, AuthenticatedPatient
 from app.services import mpi_service
+from typing import Annotated
 
 router = APIRouter(prefix="/api/mpi", tags=["Master Patient Index"])
 
@@ -17,7 +18,7 @@ def register_identity(
     hospital: AuthenticatedHospital = Depends(get_current_hospital),
     db: Session = Depends(get_db),
 ):
-    """Register a patient identity mapping in the MPI."""
+    """Register a patient identity mapping. Restricted to Hospitals."""
     result = mpi_service.register_patient(
         db=db,
         hospital_id=body.hospital_id,
@@ -35,10 +36,13 @@ def register_identity(
 def resolve_identity(
     hospital_id: str = Query(...),
     local_patient_id: str = Query(...),
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
+    requester: AuthenticatedHospital | AuthenticatedPatient = Depends(get_current_requester),
     db: Session = Depends(get_db),
 ):
-    """Resolve a global patient UUID from hospital ID + local patient ID."""
+    """Resolve a global patient UUID. Restricted to Hospitals (Patients use global_id directly)."""
+    if isinstance(requester, AuthenticatedPatient):
+        raise HTTPException(status_code=403, detail="Patients cannot resolve local IDs. Use global ID.")
+
     global_id = mpi_service.resolve_patient(
         db=db,
         hospital_id=hospital_id,
@@ -59,10 +63,13 @@ def resolve_identity(
 @router.get("/{global_patient_id}", response_model=MPIRecordResponse)
 def get_identities(
     global_patient_id: str,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
+    requester: AuthenticatedHospital | AuthenticatedPatient = Depends(get_current_requester),
     db: Session = Depends(get_db),
 ):
-    """Get all hospital identity mappings for a global patient UUID."""
+    """Get all hospital mappings for a global patient UUID. Patients can only see their own mappings."""
+    if isinstance(requester, AuthenticatedPatient) and requester.patient_id != global_patient_id:
+        raise HTTPException(status_code=403, detail="Patients can only view their own identity mappings")
+
     identities = mpi_service.get_identities(db=db, global_patient_id=global_patient_id)
     if not identities:
         raise HTTPException(
@@ -77,3 +84,4 @@ def get_identities(
         global_patient_id=global_patient_id,
         identities=[MPIIdentity(**i) for i in identities],
     )
+

@@ -3,47 +3,6 @@ import API from '../services/api';
 import toast from 'react-hot-toast';
 import './FHIRExplorer.css';
 
-// const EXAMPLE_BUNDLE = {
-//   resourceType: 'Bundle',
-//   id: 'fhir-bundle-PAT-GLB-001',
-//   type: 'document',
-//   timestamp: '2026-03-13T10:42:00Z',
-//   entry: [
-//     {
-//       resource: {
-//         resourceType: 'Patient',
-//         id: 'PAT-GLB-001',
-//         name: [{ use: 'official', family: 'Johnson', given: ['Alice'] }],
-//         gender: 'female',
-//         birthDate: '1985-03-12',
-//         identifier: [{ system: 'urn:oid:hospital', value: 'LOC-001' }],
-//       }
-//     },
-//     {
-//       resource: {
-//         resourceType: 'Observation',
-//         id: 'OBS-001',
-//         status: 'final',
-//         code: { text: 'Blood Pressure' },
-//         valueQuantity: { value: 130, unit: 'mmHg', system: 'http://unitsofmeasure.org' },
-//         subject: { reference: 'Patient/PAT-GLB-001' },
-//         effectiveDateTime: '2026-03-10T09:00:00Z',
-//       }
-//     },
-//     {
-//       resource: {
-//         resourceType: 'Encounter',
-//         id: 'ENC-001',
-//         status: 'finished',
-//         class: { code: 'AMB', display: 'Ambulatory' },
-//         type: [{ text: 'Cardiology Consultation' }],
-//         subject: { reference: 'Patient/PAT-GLB-001' },
-//         period: { start: '2026-03-10T09:00:00Z', end: '2026-03-10T10:00:00Z' },
-//       }
-//     }
-//   ]
-// };
-
 function JsonNode({ data, depth = 0 }) {
   const [collapsed, setCollapsed] = useState(depth > 2);
 
@@ -102,7 +61,7 @@ function JsonNode({ data, depth = 0 }) {
 }
 
 export default function FHIRExplorer({ backendUrl }) {
-  const [globalId, setGlobalId] = useState('PAT-GLB-001');
+  const [globalId, setGlobalId] = useState('');
   const [hospitalId, setHospitalId] = useState('HOSP_002');
   const [bundle, setBundle] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -124,21 +83,14 @@ export default function FHIRExplorer({ backendUrl }) {
       if (e.response?.status === 403) {
         setError('🚫 Access Denied — No active consent found for this hospital/patient combination. Grant consent in the Consent Manager first.');
       } else {
-        // Demo fallback
-        setBundle({ ...EXAMPLE_BUNDLE, id: `fhir-bundle-${globalId}` });
-        toast.success('FHIR Bundle loaded (demo)!');
+        setError('❌ Error fetching FHIR bundle. Ensure the patient exists and the services are online.');
       }
     }
     setLoading(false);
   };
 
-  const loadExample = () => {
-    setBundle(EXAMPLE_BUNDLE);
-    setGlobalId('PAT-GLB-001');
-    toast.success('Example bundle loaded!');
-  };
-
   const copyJson = () => {
+    if (!bundle) return;
     navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
     toast.success('Copied to clipboard!');
   };
@@ -179,14 +131,9 @@ export default function FHIRExplorer({ backendUrl }) {
               <button className="btn btn--primary" style={{ flex: 1 }} onClick={fetchBundle} disabled={loading}>
                 {loading ? <><span className="spinner spinner--sm" /> Fetching...</> : '📋 Fetch Bundle'}
               </button>
-              <button className="btn btn--secondary" onClick={loadExample}>Load Example</button>
             </div>
 
             {error && <div className="alert alert--error" style={{ marginTop: 'var(--sp-4)' }}>{error}</div>}
-
-            <div className="alert alert--info" style={{ marginTop: 'var(--sp-3)' }}>
-              💡 Try <code>HOSP_002</code> fetching <code>PAT-GLB-001</code> (consent active)
-            </div>
           </div>
         </div>
 

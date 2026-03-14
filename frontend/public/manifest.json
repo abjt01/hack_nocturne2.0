@@ -1,6 +1,6 @@
 {
-  "short_name": "HealthBridge",
-  "name": "HealthBridge FHIR Platform",
+  "short_name": "Vital",
+  "name": "Vital FHIR Platform",
   "icons": [
     {
       "src": "favicon.ico",

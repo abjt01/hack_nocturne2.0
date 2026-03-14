@@ -3,21 +3,13 @@ import API from '../services/api';
 import toast from 'react-hot-toast';
 import './Consent.css';
 
-const MOCK_CONSENTS = [
-  { id: 'CON-001', patient_global_id: 'PAT-GLB-001', patient_name: 'Alice Johnson',   granting_hospital: 'HOSP_001', requesting_hospital: 'HOSP_002', status: 'active',  granted_at: '2025-02-01', expires_at: '2026-02-01', purpose: 'Specialist Referral' },
-  { id: 'CON-002', patient_global_id: 'PAT-GLB-002', patient_name: 'Bob Martinez',    granting_hospital: 'HOSP_001', requesting_hospital: 'HOSP_003', status: 'active',  granted_at: '2025-02-10', expires_at: '2025-08-10', purpose: 'Emergency Care' },
-  { id: 'CON-003', patient_global_id: 'PAT-GLB-003', patient_name: 'Carol Williams',  granting_hospital: 'HOSP_001', requesting_hospital: 'HOSP_002', status: 'active',  granted_at: '2025-03-01', expires_at: '2026-03-01', purpose: 'Chronic Care Management' },
-  { id: 'CON-004', patient_global_id: 'PAT-GLB-004', patient_name: 'David Chen',      granting_hospital: 'HOSP_002', requesting_hospital: 'HOSP_001', status: 'revoked', granted_at: '2025-01-15', expires_at: '2026-01-15', purpose: 'Lab Results Sharing', revoked_at: '2025-04-01' },
-  { id: 'CON-005', patient_global_id: 'PAT-GLB-005', patient_name: 'Eva Rodriguez',   granting_hospital: 'HOSP_002', requesting_hospital: 'HOSP_003', status: 'active',  granted_at: '2025-03-15', expires_at: '2026-03-15', purpose: 'Cardiology Consult' },
-  { id: 'CON-006', patient_global_id: 'PAT-GLB-006', patient_name: 'Frank Thompson',  granting_hospital: 'HOSP_003', requesting_hospital: 'HOSP_001', status: 'expired', granted_at: '2024-06-01', expires_at: '2025-01-01', purpose: 'Surgical Planning' },
-];
 
 const HOSP_NAMES = { HOSP_001: 'City General', HOSP_002: "St. Mary's", HOSP_003: 'Northwest Clinic' };
 
 const STATUS_ORDER = { active: 0, expired: 1, revoked: 2 };
 
 export default function Consent({ backendUrl }) {
-  const [consents, setConsents]   = useState(MOCK_CONSENTS);
+  const [consents, setConsents]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [filter, setFilter]       = useState('all');
   const [showForm, setShowForm]   = useState(false);
@@ -52,7 +44,9 @@ export default function Consent({ backendUrl }) {
               requesting_hospital: c.requesting_institution || c.requesting_hospital,
           })));
         }
-      } catch { /* mock */ }
+      } catch (e) {
+        console.error("Error loading consents: ", e);
+      }
       setLoading(false);
     };
     load();
@@ -66,8 +60,10 @@ export default function Consent({ backendUrl }) {
         institution_id: c.requesting_hospital || c.requesting_institution
       });
       toast.success('Consent revoked');
-    } catch { /* mock offline */ }
-    setConsents(prev => prev.map(item => item.id === c.id ? { ...item, status: 'revoked', revoked_at: new Date().toISOString().slice(0,10) } : item));
+      setConsents(prev => prev.map(item => item.id === c.id ? { ...item, status: 'revoked', revoked_at: new Date().toISOString().slice(0,10) } : item));
+    } catch (err) {
+      toast.error(err.response?.data?.detail?.message || 'Failed to revoke consent');
+    }
   };
 
   const grantConsent = async () => {
@@ -82,19 +78,20 @@ export default function Consent({ backendUrl }) {
         purpose: form.purpose
       });
       toast.success('Consent granted!');
+      
+      const newId = `CON-${String(consents.length + 1).padStart(3,'0')}`;
+      setConsents(prev => [...prev, {
+        ...form, id: newId, status: 'active',
+        granted_at: new Date().toISOString().slice(0,10),
+        patient_name: '—',
+        granting_hospital: form.granting_hospital,
+        requesting_hospital: form.requesting_hospital,
+      }]);
+      setShowForm(false);
+      setForm({ patient_global_id: '', granting_hospital: 'HOSP_001', requesting_hospital: 'HOSP_002', expires_at: '', purpose: '' });
     } catch(err) { 
-      toast.success(err.response?.data?.detail?.message || 'Consent granted! (demo mode)'); 
+      toast.error(err.response?.data?.detail?.message || 'Failed to grant consent'); 
     }
-    const newId = `CON-${String(consents.length + 1).padStart(3,'0')}`;
-    setConsents(prev => [...prev, {
-      ...form, id: newId, status: 'active',
-      granted_at: new Date().toISOString().slice(0,10),
-      patient_name: '—',
-      granting_hospital: form.granting_hospital,
-      requesting_hospital: form.requesting_hospital,
-    }]);
-    setShowForm(false);
-    setForm({ patient_global_id: '', granting_hospital: 'HOSP_001', requesting_hospital: 'HOSP_002', expires_at: '', purpose: '' });
   };
 
   const displayed = [...consents]

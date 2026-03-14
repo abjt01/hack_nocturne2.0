@@ -1,16 +1,22 @@
-import sqlite3
 import os
+import psycopg2
+from psycopg2.extras import RealDictConnection
 
-DATABASE_PATH = os.getenv("DATABASE_PATH", "mpi.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db_connection():
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL, connection_factory=RealDictConnection)
+    with conn.cursor() as cur:
+        cur.execute("SET search_path TO mpi_service")
     return conn
 
 def init_db():
-    conn = get_db_connection()
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = True
     cursor = conn.cursor()
+    
+    cursor.execute("CREATE SCHEMA IF NOT EXISTS mpi_service")
+    cursor.execute("SET search_path TO mpi_service")
     
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS mpi_records (
@@ -21,14 +27,14 @@ def init_db():
     
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS identities (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             global_patient_id TEXT,
             hospital_id TEXT,
             local_patient_id TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(global_patient_id) REFERENCES mpi_records(global_patient_id),
             UNIQUE(hospital_id, local_patient_id)
         )
     ''')
     
-    conn.commit()
     conn.close()

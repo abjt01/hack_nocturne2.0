@@ -3,8 +3,8 @@ from datetime import datetime
 from typing import Optional
 
 class HospitalBase(BaseModel):
-    hospital_id: str
-    hospital_name: str
+    id: str
+    name: str
 
 class HospitalCreate(HospitalBase):
     api_key: str
@@ -16,7 +16,7 @@ class Hospital(HospitalBase):
         from_attributes = True
 
 class HospitalValidate(BaseModel):
-    hospital_id: str
+    id: str
     api_key: str
 
 class ValidationResponse(BaseModel):
