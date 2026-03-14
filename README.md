@@ -1,6 +1,6 @@
-# Vitals
+# Vital: FHIR Healthcare Interoperability Platform
 
-Vitals is a **FHIR-based healthcare interoperability platform** designed to enable secure data exchange between hospitals while maintaining **patient consent enforcement and tamper-proof auditability**.
+Vital is a comprehensive healthcare data exchange layer built on HL7 FHIR standards. It enables disparate hospital systems to securely share patient records using a zero-trust architecture, consent-gated access control, and immutable blockchain-based audit trails.
 
 The system implements a **microservices architecture** that standardizes hospital data into **HL7 FHIR bundles**, validates **cross-institution access through patient consent**, and logs every access event using **blockchain-backed cryptographic verification**.
 

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from .routes import router
-from . import database
+from app.routes import router
+from app import database
 import os
 
 app = FastAPI(
@@ -18,5 +18,5 @@ app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
-    from .config import SERVICE_PORT
-    uvicorn.run("app.main:app", host="0.0.0.0", port=SERVICE_PORT, reload=True)
+    from app.config import SERVICE_PORT
+    uvicorn.run("app.main:app", host="0.0.0.0", port=SERVICE_PORT, reload=False)

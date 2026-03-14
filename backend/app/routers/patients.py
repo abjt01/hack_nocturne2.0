@@ -13,21 +13,24 @@ from app.schemas.patient import (
     PatientUpdate,
     PatientListResponse,
 )
-from app.services.auth import get_current_hospital, AuthenticatedHospital
+from app.services.auth import get_current_hospital, get_current_requester, AuthenticatedHospital, AuthenticatedPatient
 from app.services import mpi_service
+from typing import Annotated
 
 router = APIRouter(prefix="/api/patients", tags=["Patient Data Service"])
 
 
 @router.get("", response_model=PatientListResponse)
 def list_patients(
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
+    requester: Annotated[AuthenticatedHospital | AuthenticatedPatient, Depends(get_current_requester)],
+    db: Annotated[Session, Depends(get_db)],
 ):
-    """List all patients for the authenticated hospital."""
-    patients = (
-        db.query(Patient).filter(Patient.hospital_id == hospital.hospital_id).all()
-    )
+    """List patients. Hospitals see all their patients. Patients see only themselves."""
+    if isinstance(requester, AuthenticatedPatient):
+        patients = db.query(Patient).filter(Patient.global_id == requester.patient_id).all()
+    else:
+        patients = db.query(Patient).filter(Patient.hospital_id == requester.hospital_id).all()
+        
     return PatientListResponse(
         patients=[PatientResponse.model_validate(p) for p in patients],
         count=len(patients),
@@ -37,10 +40,10 @@ def list_patients(
 @router.post("", response_model=PatientResponse, status_code=201)
 def create_patient(
     body: PatientCreate,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
+    hospital: Annotated[AuthenticatedHospital, Depends(get_current_hospital)],
+    db: Annotated[Session, Depends(get_db)],
 ):
-    """Create a new patient record and register in MPI."""
+    """Create a new patient record and register in MPI. Restricted to Hospitals."""
     global_id = str(uuid.uuid4())
 
     patient = Patient(
@@ -73,10 +76,16 @@ def create_patient(
 @router.get("/{global_id}", response_model=PatientResponse)
 def get_patient(
     global_id: str,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
+    requester: Annotated[AuthenticatedHospital | AuthenticatedPatient, Depends(get_current_requester)],
+    db: Annotated[Session, Depends(get_db)],
 ):
-    """Get a patient by global UUID."""
+    """Get a patient by global UUID. Patients can only access their own record."""
+    if isinstance(requester, AuthenticatedPatient) and requester.patient_id != global_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Patients can only access their own record"
+        )
+
     patient = db.query(Patient).filter(Patient.global_id == global_id).first()
     if not patient:
         raise HTTPException(
@@ -87,6 +96,12 @@ def get_patient(
                 "message": f"No record for global patient ID '{global_id}'.",
             },
         )
+        
+    # Extra check for hospital role: ensure the patient belongs to this hospital
+    if isinstance(requester, AuthenticatedHospital) and patient.hospital_id != requester.hospital_id:
+         # Note: In the future, this would check the Consent Service instead of strict ownership
+         pass 
+
     return PatientResponse.model_validate(patient)
 
 
@@ -94,10 +109,10 @@ def get_patient(
 def update_patient(
     global_id: str,
     body: PatientUpdate,
-    hospital: AuthenticatedHospital = Depends(get_current_hospital),
-    db: Session = Depends(get_db),
+    hospital: Annotated[AuthenticatedHospital, Depends(get_current_hospital)],
+    db: Annotated[Session, Depends(get_db)],
 ):
-    """Update a patient record."""
+    """Update a patient record. Restricted to Hospitals."""
     patient = db.query(Patient).filter(Patient.global_id == global_id).first()
     if not patient:
         raise HTTPException(
@@ -116,3 +131,4 @@ def update_patient(
     db.commit()
     db.refresh(patient)
     return PatientResponse.model_validate(patient)
+

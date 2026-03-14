@@ -8,6 +8,7 @@ from app.database import Base
 
 class Encounter(Base):
     __tablename__ = "encounters"
+    __table_args__ = {"schema": "patient_service"}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     patient_id = Column(String, nullable=False, index=True)  # global patient UUID

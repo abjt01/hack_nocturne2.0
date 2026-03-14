@@ -23,7 +23,7 @@ from app.models import hospital, patient, mpi, consent, observation, encounter, 
 from app.routers import hospitals, patients, mpi as mpi_router, consent as consent_router, fhir, audit as audit_router
 
 app = FastAPI(
-    title="Healthcare Interoperability Platform",
+    title="Vital",
     description=(
         "FHIR-based healthcare interoperability layer with consent enforcement "
         "and tamper-proof audit trails. Enables hospitals to securely exchange "
@@ -63,7 +63,7 @@ def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "service": "Healthcare Interoperability Platform",
+        "service": "Vital",
         "version": "1.0.0",
     }
 

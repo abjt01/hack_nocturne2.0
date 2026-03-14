@@ -2,20 +2,8 @@ import React, { useState, useEffect } from 'react';
 import API from '../services/api';
 import toast from 'react-hot-toast';
 
-// const MOCK_MPI = [
-//   { global_id: 'PAT-GLB-001', local_id: 'LOC-001', hospital_id: 'HOSP_001', name: 'Alice Johnson',  created_at: '2025-01-20' },
-//   { global_id: 'PAT-GLB-002', local_id: 'LOC-002', hospital_id: 'HOSP_001', name: 'Bob Martinez',   created_at: '2025-01-21' },
-//   { global_id: 'PAT-GLB-003', local_id: 'LOC-003', hospital_id: 'HOSP_001', name: 'Carol Williams', created_at: '2025-01-22' },
-//   { global_id: 'PAT-GLB-004', local_id: 'LOC-004', hospital_id: 'HOSP_002', name: 'David Chen',     created_at: '2025-02-10' },
-//   { global_id: 'PAT-GLB-005', local_id: 'LOC-005', hospital_id: 'HOSP_002', name: 'Eva Rodriguez',  created_at: '2025-02-11' },
-//   { global_id: 'PAT-GLB-006', local_id: 'LOC-006', hospital_id: 'HOSP_003', name: 'Frank Thompson', created_at: '2025-03-05' },
-//   { global_id: 'PAT-GLB-007', local_id: 'LOC-007', hospital_id: 'HOSP_003', name: 'Grace Lee',      created_at: '2025-03-06' },
-// ];
-
-// const HOSP_NAMES = { HOSP_001: 'City General', HOSP_002: "St. Mary's", HOSP_003: 'Northwest Clinic' };
-
 export default function MPI({ backendUrl }) {
-  const [records, setRecords] = useState(MOCK_MPI);
+  const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [lookupLocal, setLookupLocal] = useState('');
@@ -30,16 +18,14 @@ export default function MPI({ backendUrl }) {
         const res = await API.get('/api/patients');
         if (!alive) return;
         const data = res.data?.patients || res.data || [];
-        if (data.length > 0) {
-          setRecords(data.map(p => ({
-            global_id: p.global_id || p.id,
-            local_id: p.local_patient_id || p.local_id || p.id,
-            hospital_id: p.hospital_id || 'HOSP_001',
-            name: p.name || `${p.given_name || p.first_name || ''} ${p.family_name || p.last_name || ''}`.trim(),
-            created_at: p.created_at || new Date().toISOString().slice(0, 10)
-          })));
-        }
-      } catch { /* mock */ }
+        setRecords(data.map(p => ({
+          global_id: p.global_id || p.id,
+          local_id: p.local_patient_id || p.local_id || p.id,
+          hospital_id: p.hospital_id || 'HOSP_001',
+          name: p.name || `${p.given_name || p.first_name || ''} ${p.family_name || p.last_name || ''}`.trim(),
+          created_at: p.created_at || new Date().toISOString().slice(0, 10)
+        })));
+      } catch { }
       setLoading(false);
     };
     load();
@@ -54,9 +40,7 @@ export default function MPI({ backendUrl }) {
       const res = await API.get(`/api/mpi/resolve`, { params: { local_patient_id: lookupLocal, hospital_id: lookupHospital } });
       setLookupResult({ found: true, data: res.data });
     } catch {
-      // Fallback to mock search
-      const found = records.find(r => r.local_id === lookupLocal && r.hospital_id === lookupHospital);
-      setLookupResult(found ? { found: true, data: found } : { found: false });
+      setLookupResult({ found: false });
     }
     setLooking(false);
   };
@@ -114,17 +98,13 @@ export default function MPI({ backendUrl }) {
                     <div style={{ fontWeight: 700, marginBottom: 4 }}>✅ Patient Found</div>
                     <div><strong>Global ID:</strong> <code>{lookupResult.data?.global_id || lookupResult.data?.id}</code></div>
                     <div><strong>Name:</strong> {lookupResult.data?.name || '—'}</div>
-                    <div><strong>Hospital:</strong> {HOSP_NAMES[lookupResult.data?.hospital_id] || lookupResult.data?.hospital_id}</div>
+                    <div><strong>Hospital ID:</strong> {lookupResult.data?.hospital_id}</div>
                   </>
                 ) : (
                   '❌ No mapping found for this local ID and hospital combination'
                 )}
               </div>
             )}
-
-            <div className="alert alert--info" style={{ marginTop: 'var(--sp-3)' }}>
-              💡 Try: <code>LOC-001</code> at <code>HOSP_001</code>
-            </div>
           </div>
         </div>
 
@@ -138,7 +118,6 @@ export default function MPI({ backendUrl }) {
               {[
                 { label: 'Total Registered Patients', value: records.length, color: 'var(--blue-600)' },
                 { label: 'Unique Hospitals', value: new Set(records.map(r => r.hospital_id)).size, color: '#7c3aed' },
-                { label: 'Latest Registration', value: records[records.length - 1]?.created_at || '—', color: '#0d9488' },
               ].map(s => (
                 <div key={s.label} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -186,7 +165,7 @@ export default function MPI({ backendUrl }) {
                     <td><code>{r.global_id}</code></td>
                     <td style={{ fontWeight: 600 }}>{r.name || '—'}</td>
                     <td><code>{r.local_id}</code></td>
-                    <td><span className="badge badge--blue">{HOSP_NAMES[r.hospital_id] || r.hospital_id}</span></td>
+                    <td><span className="badge badge--blue">{r.hospital_id}</span></td>
                     <td style={{ color: 'var(--gray-500)', fontSize: 'var(--text-sm)' }}>{r.created_at || '—'}</td>
                   </tr>
                 ))}

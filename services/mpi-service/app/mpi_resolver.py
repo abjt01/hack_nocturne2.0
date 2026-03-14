@@ -1,5 +1,7 @@
 import uuid
 from . import database
+import psycopg2
+from psycopg2.errors import UniqueViolation
 
 def resolve_or_create_identity(hospital_id: str, local_patient_id: str) -> str:
     """
@@ -13,7 +15,7 @@ def resolve_or_create_identity(hospital_id: str, local_patient_id: str) -> str:
     # Check if identity exists
     cursor.execute('''
         SELECT global_patient_id FROM identities
-        WHERE hospital_id = ? AND local_patient_id = ?
+        WHERE hospital_id = %s AND local_patient_id = %s
     ''', (hospital_id, local_patient_id))
     
     row = cursor.fetchone()
@@ -29,23 +31,23 @@ def resolve_or_create_identity(hospital_id: str, local_patient_id: str) -> str:
         # Create MPI record
         cursor.execute('''
             INSERT INTO mpi_records (global_patient_id)
-            VALUES (?)
+            VALUES (%s)
         ''', (new_global_id,))
         
         # Create identity mapping
         cursor.execute('''
             INSERT INTO identities (global_patient_id, hospital_id, local_patient_id)
-            VALUES (?, ?, ?)
+            VALUES (%s, %s, %s)
         ''', (new_global_id, hospital_id, local_patient_id))
         
         conn.commit()
-    except sqlite3.IntegrityError:
+    except UniqueViolation:
         # Failsafe in case of extremely unlikely race conditions where the identical
         # request comes in twice at the exact same millisecond before commit
         conn.rollback()
         cursor.execute('''
             SELECT global_patient_id FROM identities
-            WHERE hospital_id = ? AND local_patient_id = ?
+            WHERE hospital_id = %s AND local_patient_id = %s
         ''', (hospital_id, local_patient_id))
         row = cursor.fetchone()
         if row:
@@ -64,7 +66,7 @@ def resolve_identity(hospital_id: str, local_patient_id: str) -> str | None:
     
     cursor.execute('''
         SELECT global_patient_id FROM identities
-        WHERE hospital_id = ? AND local_patient_id = ?
+        WHERE hospital_id = %s AND local_patient_id = %s
     ''', (hospital_id, local_patient_id))
     
     row = cursor.fetchone()
@@ -82,7 +84,7 @@ def get_patient_identities(global_patient_id: str) -> dict | None:
     cursor = conn.cursor()
     
     # Check if the MPI record itself exists
-    cursor.execute('SELECT created_at FROM mpi_records WHERE global_patient_id = ?', (global_patient_id,))
+    cursor.execute('SELECT created_at FROM mpi_records WHERE global_patient_id = %s', (global_patient_id,))
     mpi_row = cursor.fetchone()
     
     if not mpi_row:
@@ -94,7 +96,7 @@ def get_patient_identities(global_patient_id: str) -> dict | None:
     # Fetch all linked identities
     cursor.execute('''
         SELECT hospital_id, local_patient_id FROM identities
-        WHERE global_patient_id = ?
+        WHERE global_patient_id = %s
     ''', (global_patient_id,))
     
     identity_rows = cursor.fetchall()

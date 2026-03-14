@@ -3,41 +3,8 @@ import API from '../services/api';
 import toast from 'react-hot-toast';
 import './Hospitals.css';
 
-// const MOCK_HOSPITALS = [
-//   {
-//     id: 'HOSP_001',
-//     name: 'City General Hospital',
-//     location: 'New York, NY',
-//     api_key: 'key_001',
-//     patient_count: 3,
-//     status: 'active',
-//     specialties: ['Cardiology', 'Oncology', 'Neurology'],
-//     joined: '2025-01-15',
-//   },
-//   {
-//     id: 'HOSP_002',
-//     name: "St. Mary's Medical Center",
-//     location: 'Los Angeles, CA',
-//     api_key: 'key_002',
-//     patient_count: 2,
-//     status: 'active',
-//     specialties: ['Pediatrics', 'Emergency'],
-//     joined: '2025-02-10',
-//   },
-//   {
-//     id: 'HOSP_003',
-//     name: 'Northwest Regional Clinic',
-//     location: 'Seattle, WA',
-//     api_key: 'key_003',
-//     patient_count: 2,
-//     status: 'active',
-//     specialties: ['General Medicine', 'Orthopedics'],
-//     joined: '2025-03-05',
-//   },
-// ];
-
 export default function Hospitals({ backendUrl }) {
-  const [hospitals, setHospitals] = useState(MOCK_HOSPITALS);
+  const [hospitals, setHospitals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
@@ -49,8 +16,8 @@ export default function Hospitals({ backendUrl }) {
         const res = await API.get('/api/hospitals');
         if (!alive) return;
         const data = res.data?.hospitals || res.data || [];
-        if (data.length > 0) setHospitals(data);
-      } catch { /* Use mock */ }
+        setHospitals(data);
+      } catch { }
       setLoading(false);
     };
     load();
@@ -67,7 +34,7 @@ export default function Hospitals({ backendUrl }) {
     <div className="hospitals animate-fade-in">
       <div className="page-header">
         <h1>🏥 Hospital Registry</h1>
-        <p>All registered institutions in the HealthBridge network</p>
+        <p>All registered institutions in the Vital network</p>
       </div>
 
       {/* Toolbar */}
@@ -171,10 +138,6 @@ export default function Hospitals({ backendUrl }) {
                 {hospitals.filter(h => h.status === 'active').length}
               </span>
               <span className="hospitals__summary-label">Active</span>
-            </div>
-            <div className="hospitals__summary-item">
-              <span className="hospitals__summary-value">3</span>
-              <span className="hospitals__summary-label">States</span>
             </div>
           </div>
         </div>

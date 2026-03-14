@@ -1,4 +1,4 @@
-// HealthBridge FHIR Platform — Mock Backend
+// Vital FHIR Platform — Mock Backend
 // Run with: node mock-backend.js
 // Provides demo data for the React frontend when the real FastAPI backend is offline
 

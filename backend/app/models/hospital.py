@@ -9,6 +9,7 @@ from app.database import Base
 
 class Hospital(Base):
     __tablename__ = "hospitals"
+    __table_args__ = {"schema": "registry_service"}
 
     id = Column(String, primary_key=True)  # e.g. HOSP_001
     name = Column(String, nullable=False)

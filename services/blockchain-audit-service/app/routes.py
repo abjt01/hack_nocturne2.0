@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
-from .models import AuditEvent, LogEventResponse, VerifyEventResponse, HealthResponse
-from .hash_service import compute_hash
-from .blockchain_client import BlockchainClient
-from . import database
+from app.models import AuditEvent, LogEventResponse, VerifyEventResponse, HealthResponse
+from app.hash_service import compute_hash
+from app.blockchain_client import BlockchainClient
+from app import database
 import json
 
 router = APIRouter(prefix="/audit", tags=["Audit"])
